@@ -1,0 +1,289 @@
+name: 🚀 Build IA DERIV Avançada
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  FORCE_COLOR: true
+  NODE_VERSION: '20.x'
+
+jobs:
+  # Job de testes e validação
+  test:
+    name: 🧪 Testes e Validação
+    runs-on: windows-latest
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📦 Instalar dependências
+      run: |
+        npm ci --no-optional --no-fund --no-audit
+        
+    - name: 🔧 Criar assets
+      run: npm run create-assets
+      
+    - name: 🧪 Executar testes
+      run: |
+        echo "✅ Validação de sintaxe"
+        node -c main.js
+        node -c preload.js
+        
+    - name: 📊 Verificar package.json
+      run: npm run --if-present test
+      
+    - name: 📋 Lint (se configurado)
+      run: npm run --if-present lint
+      continue-on-error: true
+
+  # Job de build para Windows
+  build-windows:
+    name: 🪟 Build Windows
+    runs-on: windows-latest
+    needs: test
+    
+    strategy:
+      matrix:
+        arch: [x64, ia32]
+        
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📦 Instalar dependências
+      run: |
+        npm ci --no-optional --no-fund --no-audit
+        
+    - name: 🔧 Criar assets
+      run: npm run create-assets
+      
+    - name: 🏗️ Build aplicação
+      run: |
+        if ("${{ matrix.arch }}" -eq "x64") {
+          npm run build-win-64
+        } else {
+          npm run build-win-32
+        }
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📊 Verificar artefatos
+      run: |
+        Write-Host "📁 Conteúdo do diretório dist:"
+        Get-ChildItem -Path "dist" -Recurse | ForEach-Object {
+          $size = if ($_.PSIsContainer) { "[DIR]" } else { "$([math]::Round($_.Length / 1MB, 2)) MB" }
+          Write-Host "  $($_.Name) - $size"
+        }
+        
+    - name: 📤 Upload artefatos
+      uses: actions/upload-artifact@v4
+      with:
+        name: ia-deriv-windows-${{ matrix.arch }}
+        path: |
+          dist/*.exe
+          dist/*.zip
+        retention-days: 30
+
+  # Job de build portátil
+  build-portable:
+    name: 📦 Build Portátil
+    runs-on: windows-latest
+    needs: test
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📦 Instalar dependências
+      run: npm ci --no-optional
+      
+    - name: 🔧 Criar assets
+      run: npm run create-assets
+      
+    - name: 📱 Build versão portátil
+      run: npm run build-portable
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📤 Upload versão portátil
+      uses: actions/upload-artifact@v4
+      with:
+        name: ia-deriv-portable
+        path: dist/*Portable*.exe
+        retention-days: 30
+
+  # Job de release (apenas para tags)
+  release:
+    name: 🚀 Release
+    runs-on: windows-latest
+    needs: [build-windows, build-portable]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+      
+    - name: 📥 Download artefatos x64
+      uses: actions/download-artifact@v4
+      with:
+        name: ia-deriv-windows-x64
+        path: release/x64/
+        
+    - name: 📥 Download artefatos ia32
+      uses: actions/download-artifact@v4
+      with:
+        name: ia-deriv-windows-ia32
+        path: release/ia32/
+        
+    - name: 📥 Download versão portátil
+      uses: actions/download-artifact@v4
+      with:
+        name: ia-deriv-portable
+        path: release/portable/
+        
+    - name: 📝 Gerar changelog
+      id: changelog
+      run: |
+        $version = "${{ github.ref_name }}"
+        $changelog = @"
+        ## 🚀 IA DERIV Avançada $version
+        
+        ### ✨ Novidades
+        - Sistema de Q-Learning aprimorado
+        - Inversão adaptativa mais inteligente
+        - Interface desktop otimizada para Windows
+        - Notificações nativas do sistema
+        - Armazenamento local seguro de configurações
+        
+        ### 🔧 Melhorias
+        - Performance otimizada para Windows 10/11
+        - Atalhos de teclado completos
+        - Sistema anti-duplicação ultra rigoroso
+        - Feedback automático para IA após trades
+        
+        ### 📦 Downloads Disponíveis
+        - **Setup Completo (64-bit)**: Instalador com todas as funcionalidades
+        - **Setup Completo (32-bit)**: Compatível com sistemas mais antigos  
+        - **Versão Portátil**: Não requer instalação, execute diretamente
+        
+        ### ⚠️ Requisitos
+        - Windows 10/11 (64-bit recomendado)
+        - 4GB RAM mínimo
+        - Conexão com internet para IA avançada
+        - Token de API da Deriv
+        
+        ### 🔗 Links Úteis
+        - [Obter Token API](https://app.deriv.com/account/api-token)
+        - [Documentação Completa](README.md)
+        - [Suporte](https://github.com/ia-trading-team/ia-deriv-avancada/issues)
+        
+        **⚠️ IMPORTANTE**: Use sempre conta DEMO para testes. Trading envolve riscos financeiros.
+        "@
+        
+        $changelog | Out-File -FilePath "CHANGELOG.md" -Encoding UTF8
+        echo "changelog_content=$changelog" >> $env:GITHUB_OUTPUT
+        
+    - name: 🏷️ Criar release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: 🚀 IA DERIV Avançada ${{ github.ref_name }}
+        body: ${{ steps.changelog.outputs.changelog_content }}
+        draft: false
+        prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+        files: |
+          release/x64/*.exe
+          release/ia32/*.exe
+          release/portable/*.exe
+          README.md
+          LICENSE.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job de segurança e qualidade
+  security:
+    name: 🛡️ Auditoria de Segurança
+    runs-on: windows-latest
+    needs: test
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: 📦 Instalar dependências
+      run: npm ci --no-optional
+      
+    - name: 🔍 Auditoria npm
+      run: |
+        Write-Host "🔍 Executando auditoria de segurança..."
+        npm audit --audit-level=moderate || echo "⚠️ Vulnerabilidades encontradas"
+        
+    - name: 📊 Análise de dependências
+      run: |
+        Write-Host "📊 Analisando dependências..."
+        npm ls --depth=0
+        
+    - name: 🧹 Verificar arquivos sensíveis
+      run: |
+        Write-Host "🧹 Verificando arquivos sensíveis..."
+        $sensitiveFiles = @("*.key", "*.pem", "*.p12", ".env*", "config.json")
+        foreach ($pattern in $sensitiveFiles) {
+          $files = Get-ChildItem -Path . -Name $pattern -Recurse -ErrorAction SilentlyContinue
+          if ($files) {
+            Write-Host "⚠️ Arquivos sensíveis encontrados: $files"
+          }
+        }
+
+  # Job de notificação
+  notify:
+    name: 📢 Notificação
+    runs-on: windows-latest
+    needs: [build-windows, build-portable]
+    if: always()
+    
+    steps:
+    - name: 📢 Status do build
+      run: |
+        $status = "${{ needs.build-windows.result }}"
+        $portable = "${{ needs.build-portable.result }}"
+        
+        if ($status -eq "success" -and $portable -eq "success") {
+          Write-Host "✅ Build concluído com sucesso!"
+          Write-Host "🎉 IA DERIV Avançada está pronto para uso!"
+        } else {
+          Write-Host "❌ Build falhou. Verifique os logs."
+        }
+        
+        Write-Host "📊 Resultados:"
+        Write-Host "  Windows Build: $status"
+        Write-Host "  Portable Build: $portable"
+        Write-Host "  Commit: ${{ github.sha }}"
+        Write-Host "  Branch: ${{ github.ref_name }}"

@@ -1,0 +1,253 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🚀 Launch IA DERIV App",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
+      },
+      "args": [
+        ".",
+        "--dev"
+      ],
+      "env": {
+        "NODE_ENV": "development",
+        "ELECTRON_ENABLE_LOGGING": "true",
+        "ELECTRON_ENABLE_STACK_DUMPING": "true"
+      },
+      "outputCapture": "std",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
+      "name": "🧪 Debug Main Process",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
+      },
+      "args": [
+        "--inspect=9229",
+        ".",
+        "--dev"
+      ],
+      "env": {
+        "NODE_ENV": "development",
+        "ELECTRON_ENABLE_LOGGING": "true"
+      },
+      "outputCapture": "std",
+      "console": "integratedTerminal",
+      "port": 9229
+    },
+    {
+      "name": "🔧 Debug Renderer Process",
+      "type": "chrome",
+      "request": "attach",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}",
+      "timeout": 30000,
+      "urlFilter": "**/index.html*"
+    },
+    {
+      "name": "🏗️ Build and Launch",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/node_modules/.bin/electron-builder",
+      "args": [
+        "--dir"
+      ],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "console": "integratedTerminal",
+      "preLaunchTask": "npm: create-assets"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🔍 Debug All Processes",
+      "configurations": [
+        "🧪 Debug Main Process",
+        "🔧 Debug Renderer Process"
+      ]
+    }
+  ]
+}
+
+// ARQUIVO: .vscode/extensions.json
+{
+  "recommendations": [
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.vscode-json",
+    "gruntfuggly.todo-tree",
+    "aaron-bond.better-comments",
+    "PKief.material-icon-theme",
+    "ms-vscode.powershell",
+    "ms-vscode.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-html-language-service",
+    "ms-vscode.vscode-css-language-service",
+    "ms-vscode.hexdump",
+    "alefragnani.Bookmarks",
+    "streetsidesoftware.code-spell-checker",
+    "eamodio.gitlens",
+    "ms-vscode.live-server",
+    "ritwickdey.LiveServer"
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-typescript",
+    "hookyqr.beautify"
+  ]
+}
+
+// ARQUIVO: .vscode/tasks.json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: install",
+      "type": "npm",
+      "script": "install",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: create-assets",
+      "type": "npm",
+      "script": "create-assets",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: start",
+      "type": "npm",
+      "script": "start",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "dependsOn": "npm: create-assets"
+    },
+    {
+      "label": "npm: dev",
+      "type": "npm",
+      "script": "dev",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "dependsOn": "npm: create-assets"
+    },
+    {
+      "label": "npm: build-win",
+      "type": "npm",
+      "script": "build-win",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "dependsOn": "npm: create-assets"
+    },
+    {
+      "label": "🧹 Clean Build",
+      "type": "shell",
+      "command": "Remove-Item",
+      "args": [
+        "-Path",
+        "dist,build,node_modules/.cache",
+        "-Recurse",
+        "-Force",
+        "-ErrorAction",
+        "SilentlyContinue"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🔍 Check Syntax",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "-c",
+        "main.js",
+        "&&",
+        "node",
+        "-c",
+        "preload.js"
+      ],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "📦 Full Rebuild",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "🧹 Clean Build",
+        "npm: install",
+        "npm: create-assets",
+        "npm: build-win"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new"
+      }
+    }
+  ]
+}
